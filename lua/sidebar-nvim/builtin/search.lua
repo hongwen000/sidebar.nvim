@@ -933,10 +933,6 @@ local M = {
     close_preview = function()
         state:clear_preview() 
     end,
-}
-
--- Return sidebar section definition
-M.section = {
     title = "Search",
     icon = config.search.icon,
     draw = function(ctx)
