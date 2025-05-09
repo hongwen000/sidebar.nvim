@@ -40,4 +40,17 @@ M.todos = { icon = "", ignored_paths = { "~" }, initially_closed = false }
 
 M.files = { icon = "", show_hidden = false, ignored_paths = { "%.git$" } }
 
+M.search = { 
+    icon = "🔍",
+    case_sensitive = false,
+    use_regex = true,
+    whole_word = false,
+    include_pattern = "",
+    exclude_pattern = "*/node_modules/*,*/.git/*"
+    max_history = 10,
+    backup_files = false,
+    preview_context_lines = 3,
+    max_results = 1000,
+}
+
 return M

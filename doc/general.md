@@ -20,6 +20,14 @@ Minimal setup:
 require("sidebar-nvim").setup()
 ```
 
+With search sidebar:
+
+```lua
+require("sidebar-nvim").setup({
+  sections = { "search", "files", "buffers", "git", "diagnostics" }
+})
+```
+
 # Options
 
 The following code block shows the defaults options:
@@ -41,6 +49,13 @@ require("sidebar-nvim").setup({
     },
     datetime = { format = "%a %b %d, %H:%M", clocks = { { name = "local" } } },
     todos = { ignored_paths = { "~" } },
+    search = {
+        case_sensitive = false,
+        use_regex = true,
+        whole_word = false,
+        include_pattern = "",
+        exclude_pattern = "*/node_modules/*,*/.git/*"
+    }
 })
 ```
 
@@ -666,6 +681,45 @@ require("sidebar-nvim").setup({
 | `t` | hovering an item | toggle group
 | `e` | hovering an item | open location
 
+## search
+
+A VSCode-like search sidebar with search and replace functionality.
+
+### config
+
+```lua
+require("sidebar-nvim").setup({
+    ...
+    search = {
+        icon = "🔍",
+        case_sensitive = false,
+        use_regex = true,
+        whole_word = false,
+        include_pattern = "",
+        exclude_pattern = "*/node_modules/*,*/.git/*"
+    }
+    ...
+})
+```
+
+### keybindings
+
+| key | when | action |
+|-----|------|--------|
+| `s` | anywhere | edit search input
+| `r` | anywhere | edit replace input
+| `i` | anywhere | edit include pattern
+| `x` | anywhere | edit exclude pattern
+| `c` | anywhere | toggle case sensitivity
+| `.` | anywhere | toggle regex mode
+| `w` | anywhere | toggle whole word
+| `<CR>` | hovering field | edit field value
+| `<CR>` | hovering result | open file at location
+| `e` | hovering result | open file at location
+| `R` | anywhere | execute replace operation
+| `t` | hovering file group | toggle file group expand/collapse
+| `<Tab>`/`<S-Tab>` | anywhere | cycle between fields
+
 # Colors
 
 | Highlight Group | Defaults To |
@@ -701,3 +755,7 @@ require("sidebar-nvim").setup({
 | *SidebarNvimDatetimeClockValue* | SidebarNvimNormal |
 | *SidebarNvimBuffersActive* | SidebarNvimSectionTitle |
 | *SidebarNvimBuffersNumber* | SidebarNvimComment |
+| *SidebarNvimSearch* | SidebarNvimNormal |
+| *SidebarNvimSearchActive* | IncSearch |
+| *SidebarNvimSearchToggle* | SidebarNvimComment |
+| *SidebarNvimSearchButton* | SidebarNvimKeyword |
