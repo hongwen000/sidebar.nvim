@@ -1,10 +1,9 @@
--- filepath: c:\Users\lixinrui\repo\sidebar.nvim\lua\sidebar-nvim\builtin\search.lua
 local utils = require("sidebar-nvim.utils")
 local Loclist = require("sidebar-nvim.components.loclist")
 local config = require("sidebar-nvim.config")
 local luv = vim.loop
 
--- 扩展默认配置
+-- Extend default configuration
 if not config.search then
     config.search = {
         icon = "🔍",
@@ -13,21 +12,21 @@ if not config.search then
         whole_word = false,
         include_pattern = "",
         exclude_pattern = "",
-        max_history = 10,          -- 搜索历史记录数量
-        backup_files = true,       -- 替换前备份文件
-        preview_context_lines = 3, -- 预览上下文行数
-        max_results = 1000,        -- 最大结果数量限制
+        max_history = 10,          -- Number of search history entries
+        backup_files = true,       -- Backup files before replacement
+        preview_context_lines = 3, -- Number of context lines in preview
+        max_results = 1000,        -- Maximum number of results limit
     }
 end
 
--- 初始化位置列表
+-- Initialize location list
 local loclist = Loclist:new({
     show_group_count = true,
     show_empty_groups = false,
     omit_single_group = false,
 })
 
--- SearchState 类：管理搜索相关状态
+-- SearchState class: Manages search-related state
 local SearchState = {}
 
 function SearchState:new()
@@ -64,7 +63,7 @@ end
 function SearchState:add_to_history(query)
     if query == "" then return end
     
-    -- 避免重复
+    -- Avoid duplicates
     for i, item in ipairs(self.history) do
         if item == query then
             table.remove(self.history, i)
@@ -72,10 +71,10 @@ function SearchState:add_to_history(query)
         end
     end
     
-    -- 添加到历史记录开头
+    -- Add to the beginning of history
     table.insert(self.history, 1, query)
     
-    -- 限制历史记录数量
+    -- Limit history size
     if #self.history > config.search.max_history then
         table.remove(self.history)
     end
@@ -101,7 +100,7 @@ function SearchState:cancel_search()
         end
         
         vim.schedule(function()
-            utils.echo_warning("搜索已取消")
+            utils.echo_warning("Search cancelled")
         end)
         return true
     end
@@ -120,10 +119,10 @@ function SearchState:clear_preview()
     end
 end
 
--- 创建搜索状态实例
+-- Create search state instance
 local state = SearchState:new()
 
--- UI图标定义
+-- UI icon definitions
 local icons = {
     case_sensitive = { on = "Aa", off = "aa" },
     word = { on = "\\b", off = "ab" },
@@ -138,7 +137,7 @@ local icons = {
     close = "✖",
 }
 
--- 文件备份函数
+-- File backup function
 local function backup_file(filepath)
     if not config.search.backup_files then
         return true
@@ -157,7 +156,7 @@ local function backup_file(filepath)
     
     if vim.v.shell_error ~= 0 then
         vim.schedule(function()
-            utils.echo_warning("备份文件失败 " .. filepath .. ": " .. result)
+            utils.echo_warning("Failed to backup file " .. filepath .. ": " .. result)
         end)
         return false
     end
@@ -165,7 +164,7 @@ local function backup_file(filepath)
     return true
 end
 
--- 高亮匹配结果
+-- Highlight match results
 local function highlight_match(text, pattern, is_regex, case_sensitive)
     if not is_regex then
         pattern = vim.pesc(pattern)
@@ -184,7 +183,7 @@ local function highlight_match(text, pattern, is_regex, case_sensitive)
     return start_pos, end_pos
 end
 
--- 处理搜索结果并更新位置列表
+-- Process search results and update location list
 local function process_search_results(results)
     local items = {}
     loclist:clear()
@@ -193,7 +192,7 @@ local function process_search_results(results)
         return
     end
     
-    -- 按文件分组结果
+    -- Group results by file
     local files = {}
     for _, match in ipairs(results) do
         local filepath = match.filepath
@@ -204,13 +203,13 @@ local function process_search_results(results)
         table.insert(files[filepath], match)
     end
     
-    -- 添加项目到位置列表
+    -- Add items to location list
     for filepath, matches in pairs(files) do
         for _, match in ipairs(matches) do
-            local line_text = match.line_text:gsub("\t", "    ") -- 替换制表符为空格
+            local line_text = match.line_text:gsub("\t", "    ") -- Replace tabs with spaces
             local start_pos, end_pos
             
-            -- 尝试在文本中高亮匹配项
+            -- Try to highlight matching text
             if state.query ~= "" then
                 start_pos, end_pos = highlight_match(
                     line_text, 
@@ -221,7 +220,7 @@ local function process_search_results(results)
             end
             
             if start_pos and end_pos then
-                -- 添加带高亮的匹配项
+                -- Add item with highlighting
                 table.insert(items, {
                     group = match.filepath,
                     left = {
@@ -236,7 +235,7 @@ local function process_search_results(results)
                     context = match.context or {},
                 })
             else
-                -- 回退到普通显示
+                -- Fallback to normal display
                 table.insert(items, {
                     group = match.filepath,
                     left = {
@@ -255,13 +254,13 @@ local function process_search_results(results)
     loclist:set_items(items, { remove_groups = false })
 end
 
--- 执行搜索
+-- Execute search
 local function execute_search()
     if state.query == "" or state.searching then
         return
     end
     
-    -- 取消正在进行的搜索
+    -- Cancel ongoing search
     state:cancel_search()
     
     state.searching = true
@@ -319,11 +318,11 @@ local function execute_search()
         
         table.insert(args, state.query)
     else
-        -- 如果没有ripgrep则回退到grep
+        -- Fallback to grep if ripgrep is not available
         cmd = "grep"
         args = {
-            "-n", -- 行号
-            "-H", -- 打印文件名
+            "-n", -- Line number
+            "-H", -- Print filename
             "--color=never",
         }
         
@@ -348,11 +347,11 @@ local function execute_search()
         end
     end
     
-    -- 创建进度定时器
+    -- Create progress timer
     state.timer = luv.new_timer()
     state.timer:start(100, 100, vim.schedule_wrap(function()
         if state.searching then
-            utils.echo_info(string.format("正在搜索... 已找到 %d 个结果", #results))
+            utils.echo_info(string.format("Searching... Found %d results", #results))
         end
     end))
     
@@ -371,9 +370,9 @@ local function execute_search()
         
         vim.schedule(function()
             process_search_results(results)
-            utils.echo_info(string.format("在 %d 个文件中找到 %d 个匹配项", 
-                vim.tbl_count(loclist:get_groups()),
-                #results
+            utils.echo_info(string.format("Found %d matches in %d files", 
+                #results,
+                vim.tbl_count(loclist:get_groups())
             ))
         end)
         
@@ -384,7 +383,7 @@ local function execute_search()
         state.search_handle:close()
     end)
     
-    -- 处理带上下文的ripgrep输出
+    -- Process ripgrep output with context
     local current_file = nil
     local current_matches = {}
     local context_lines = {}
@@ -394,11 +393,11 @@ local function execute_search()
         
         for _, line in ipairs(vim.split(data, "\n")) do
             if line ~= "" then
-                -- 解析ripgrep输出格式
+                -- Parse ripgrep output format
                 local file_sep = line:match("^(.+)%-%-$")
                 
                 if file_sep then
-                    -- 文件分隔符，保存之前的上下文并重置
+                    -- File separator, save previous context and reset
                     if current_file and #current_matches > 0 then
                         for _, match in ipairs(current_matches) do
                             match.context = context_lines
@@ -410,7 +409,7 @@ local function execute_search()
                     current_matches = {}
                     context_lines = {}
                 elseif line:match("^%d+%[") then
-                    -- 上下文行（非匹配行）
+                    -- Context line (non-match)
                     local line_num, content = line:match("^(%d+)%[.-%](.*)$")
                     if line_num and content then
                         table.insert(context_lines, {
@@ -420,12 +419,12 @@ local function execute_search()
                         })
                     end
                 elseif line:match("^%d+:") then
-                    -- 匹配行
+                    -- Match line
                     local filepath, line_num, col, line_text = line:match("^(.+):(%d+):(%d+):(.*)$")
                     
                     if filepath and line_num and col and line_text then
                         if current_file ~= filepath then
-                            -- 发现新文件
+                            -- Found new file
                             if current_file and #current_matches > 0 then
                                 for _, match in ipairs(current_matches) do
                                     match.context = context_lines
@@ -438,14 +437,14 @@ local function execute_search()
                             context_lines = {}
                         end
                         
-                        -- 添加到上下文行
+                        -- Add to context lines
                         table.insert(context_lines, {
                             line_num = tonumber(line_num),
                             content = line_text,
                             is_match = true
                         })
                         
-                        -- 添加到匹配项
+                        -- Add to match items
                         table.insert(current_matches, {
                             filepath = filepath,
                             line_num = tonumber(line_num),
@@ -469,52 +468,52 @@ local function execute_search()
         
         if err ~= nil or data:match("error") then
             vim.schedule(function()
-                utils.echo_warning("搜索错误: " .. (data or err))
+                utils.echo_warning("Search error: " .. (data or err))
             end)
         end
     end)
     
-    -- 添加到历史记录
+    -- Add to history
     state:add_to_history(state.query)
 end
 
--- 执行替换操作
+-- Execute replace operation
 local function execute_replace()
     if state.query == "" or state.replace_text == "" then
-        utils.echo_warning("搜索关键词和替换文本不能为空")
+        utils.echo_warning("Search query and replacement text cannot be empty")
         return
     end
     
     local locations = loclist:get_all_locations()
     if #locations == 0 then
-        utils.echo_warning("没有搜索结果可替换")
+        utils.echo_warning("No search results to replace")
         return
     end
     
-    -- 收集唯一文件
+    -- Collect unique files
     local files_to_replace = {}
     for _, location in ipairs(locations) do
         files_to_replace[location.filepath] = true
     end
     
-    -- 替换前确认
+    -- Confirm before replacement
     local file_count = vim.tbl_count(files_to_replace)
     local confirm = vim.fn.confirm(
-        string.format("将 '%s' 替换为 '%s' 在 %d 个文件中?", 
+        string.format("Replace '%s' with '%s' in %d files?", 
             state.query, state.replace_text, file_count),
-        "&确认\n&取消\n&预览", 
+        "&Confirm\n&Cancel\n&Preview", 
         2
     )
     
     if confirm ~= 1 then
         if confirm == 3 then
-            -- 显示更改预览
+            -- Show preview of changes
             preview_replace(files_to_replace)
         end
         return
     end
     
-    -- 先备份文件
+    -- Backup files first
     local all_backed_up = true
     for filepath in pairs(files_to_replace) do
         if not backup_file(filepath) then
@@ -525,8 +524,8 @@ local function execute_replace()
     
     if not all_backed_up then
         local continue = vim.fn.confirm(
-            "某些文件无法备份。是否继续?",
-            "&继续\n&取消",
+            "Some files could not be backed up. Continue anyway?",
+            "&Continue\n&Cancel",
             2
         )
         if continue ~= 1 then
@@ -534,7 +533,7 @@ local function execute_replace()
         end
     end
     
-    -- 执行替换
+    -- Execute the replacement
     local success_count = 0
     local failure_count = 0
     
@@ -543,11 +542,11 @@ local function execute_replace()
         local sed_args = {}
         
         if vim.fn.has("win32") == 1 then
-            -- Windows使用PowerShell执行替换
+            -- Use PowerShell for replacements on Windows
             sed_cmd = "powershell"
             local search_pattern = state.query
             if not state.use_regex then
-                -- 如果不使用正则，转义特殊字符
+                -- Escape special characters if not using regex
                 search_pattern = search_pattern:gsub("([%^%$%(%)%%%.%[%]%*%+%-%?])", "\\%1")
             end
             
@@ -557,10 +556,10 @@ local function execute_replace()
                 search_pattern .. "', '" .. state.replace_text .. "' } | Set-Content '" .. filepath .. "'"
             }
         else
-            -- Unix系统
-            local flags = "g"  -- 全局替换
+            -- Unix systems
+            local flags = "g"  -- Global replacement
             if not state.case_sensitive then
-                flags = flags .. "i"  -- 忽略大小写
+                flags = flags .. "i"  -- Case insensitive
             end
             
             sed_args = {
@@ -572,30 +571,30 @@ local function execute_replace()
         
         local result = vim.fn.system(sed_cmd .. " " .. table.concat(sed_args, " "))
         if vim.v.shell_error ~= 0 then
-            utils.echo_warning("替换文件时出错 " .. filepath .. ": " .. result)
+            utils.echo_warning("Error replacing in file " .. filepath .. ": " .. result)
             failure_count = failure_count + 1
         else
             success_count = success_count + 1
         end
     end
     
-    -- 报告结果
+    -- Report results
     utils.echo_info(string.format(
-        "已将 '%s' 替换为 '%s' 在 %d/%d 个文件中%s", 
+        "Replaced '%s' with '%s' in %d/%d files%s", 
         state.query, 
         state.replace_text, 
         success_count,
         file_count,
-        failure_count > 0 and " (" .. failure_count .. " 个失败)" or ""
+        failure_count > 0 and " (" .. failure_count .. " failed)" or ""
     ))
     
-    -- 重新运行搜索更新结果
+    -- Run search again to update results
     execute_search()
 end
 
--- 替换预览
+-- Preview replacement
 local function preview_replace(files_to_replace)
-    -- 创建预览缓冲区
+    -- Create preview buffer
     if not state.preview_buf or not vim.api.nvim_buf_is_valid(state.preview_buf) then
         state.preview_buf = vim.api.nvim_create_buf(false, true)
         vim.api.nvim_buf_set_option(state.preview_buf, "buftype", "nofile")
@@ -604,17 +603,17 @@ local function preview_replace(files_to_replace)
         vim.api.nvim_buf_set_option(state.preview_buf, "filetype", "diff")
     end
     
-    -- 生成差异预览
+    -- Generate diff preview
     local preview_lines = {}
-    table.insert(preview_lines, "替换预览:")
-    table.insert(preview_lines, "搜索: " .. state.query)
-    table.insert(preview_lines, "替换: " .. state.replace_text)
+    table.insert(preview_lines, "Replacement Preview:")
+    table.insert(preview_lines, "Search: " .. state.query)
+    table.insert(preview_lines, "Replace: " .. state.replace_text)
     table.insert(preview_lines, string.rep("-", 40))
     
     for filepath in pairs(files_to_replace) do
         local file_content = {}
         
-        -- 读取文件
+        -- Read file
         local file = io.open(filepath, "r")
         if file then
             for line in file:lines() do
@@ -622,15 +621,15 @@ local function preview_replace(files_to_replace)
             end
             file:close()
             
-            -- 预览更改
-            table.insert(preview_lines, "文件: " .. filepath)
+            -- Preview changes
+            table.insert(preview_lines, "File: " .. filepath)
             table.insert(preview_lines, "")
             
             for i, line in ipairs(file_content) do
                 local start_pos, end_pos
                 
                 if state.use_regex then
-                    -- 尝试使用正则表达式查找匹配项
+                    -- Try to use regex to find matches
                     local ok, s, e = pcall(function()
                         return line:find(state.query)
                     end)
@@ -639,7 +638,7 @@ local function preview_replace(files_to_replace)
                         start_pos, end_pos = s, e
                     end
                 else
-                    -- 普通文本搜索
+                    -- Normal text search
                     start_pos, end_pos = line:find(state.query, 1, true)
                 end
                 
@@ -658,17 +657,17 @@ local function preview_replace(files_to_replace)
         end
     end
     
-    -- 设置缓冲区内容
+    -- Set buffer content
     vim.api.nvim_buf_set_lines(state.preview_buf, 0, -1, false, preview_lines)
     
-    -- 创建窗口
+    -- Create window
     if not state.preview_win or not vim.api.nvim_win_is_valid(state.preview_win) then
         vim.cmd("botright split")
         state.preview_win = vim.api.nvim_get_current_win()
         vim.api.nvim_win_set_buf(state.preview_win, state.preview_buf)
         vim.api.nvim_win_set_height(state.preview_win, 15)
         
-        -- 添加关闭预览的映射
+        -- Add mapping to close preview
         vim.api.nvim_buf_set_keymap(
             state.preview_buf, 
             "n", 
@@ -679,15 +678,15 @@ local function preview_replace(files_to_replace)
     end
 end
 
--- 浏览并选择搜索历史
+-- Browse and select search history
 local function browse_history()
     if #state.history == 0 then
-        utils.echo_warning("没有搜索历史")
+        utils.echo_warning("No search history")
         return
     end
     
     vim.ui.select(state.history, {
-        prompt = "从搜索历史中选择:",
+        prompt = "Select from search history:",
         format_item = function(item) return item end,
     }, function(choice)
         if not choice then return end
@@ -697,23 +696,23 @@ local function browse_history()
     end)
 end
 
--- 显示文件预览
+-- Show file preview
 local function show_preview(location)
     if not location or not location.filepath then
         return
     end
     
-    -- 清除现有预览
+    -- Clear existing preview
     state:clear_preview()
     
-    -- 创建预览缓冲区
+    -- Create preview buffer
     state.preview_buf = vim.api.nvim_create_buf(false, true)
     vim.api.nvim_buf_set_option(state.preview_buf, "buftype", "nofile")
     vim.api.nvim_buf_set_option(state.preview_buf, "bufhidden", "wipe")
     vim.api.nvim_buf_set_option(state.preview_buf, "swapfile", false)
-    vim.api.nvim_buf_set_name(state.preview_buf, "预览: " .. location.filepath)
+    vim.api.nvim_buf_set_name(state.preview_buf, "Preview: " .. location.filepath)
     
-    -- 读取文件内容
+    -- Read file content
     local file_content = {}
     local file = io.open(location.filepath, "r")
     if file then
@@ -722,33 +721,33 @@ local function show_preview(location)
         end
         file:close()
         
-        -- 设置缓冲区内容
+        -- Set buffer content
         vim.api.nvim_buf_set_lines(state.preview_buf, 0, -1, false, file_content)
         
-        -- 根据文件类型设置语法高亮
+        -- Set syntax highlighting based on file type
         local ft = vim.filetype.match({ filename = location.filepath })
         if ft then
             vim.api.nvim_buf_set_option(state.preview_buf, "filetype", ft)
         end
         
-        -- 创建预览窗口
+        -- Create preview window
         vim.cmd("botright split")
         state.preview_win = vim.api.nvim_get_current_win()
         vim.api.nvim_win_set_buf(state.preview_win, state.preview_buf)
         vim.api.nvim_win_set_height(state.preview_win, 10)
         
-        -- 跳转到匹配行
+        -- Jump to matching line
         vim.api.nvim_win_set_cursor(state.preview_win, {location.line_num, location.col - 1})
         
-        -- 将视图居中于匹配行
+        -- Center view on matching line
         vim.cmd("normal! zz")
         
-        -- 高亮搜索词
+        -- Highlight search term
         if state.query ~= "" then
             vim.fn.matchadd("Search", state.use_regex and state.query or vim.fn.escape(state.query, "\\.*^$[]"))
         end
         
-        -- 添加关闭预览的映射
+        -- Add mapping to close preview
         vim.api.nvim_buf_set_keymap(
             state.preview_buf, 
             "n", 
@@ -757,30 +756,30 @@ local function show_preview(location)
             { noremap = true, silent = true }
         )
     else
-        utils.echo_warning("无法打开文件: " .. location.filepath)
+        utils.echo_warning("Could not open file: " .. location.filepath)
     end
 end
 
--- 处理搜索字段输入
+-- Handle search field input
 local function handle_input(field)
     local prompt_prefix = ""
     local current_value = ""
     
     if field == "search" then
-        prompt_prefix = "搜索: "
+        prompt_prefix = "Search: "
         current_value = state.query
     elseif field == "replace" then
-        prompt_prefix = "替换: "
+        prompt_prefix = "Replace: "
         current_value = state.replace_text
     elseif field == "include" then
-        prompt_prefix = "包含模式: "
+        prompt_prefix = "Include pattern: "
         current_value = state.include_pattern
     elseif field == "exclude" then
-        prompt_prefix = "排除模式: "
+        prompt_prefix = "Exclude pattern: "
         current_value = state.exclude_pattern
     end
     
-    -- 切换到正常窗口进行输入
+    -- Switch to normal window for input
     vim.cmd("wincmd p")
     
     local completion = ""
@@ -794,7 +793,7 @@ local function handle_input(field)
         completion = completion,
     })
     
-    -- 切回侧边栏
+    -- Switch back to sidebar
     vim.cmd("wincmd p")
     
     if field == "search" then
@@ -815,14 +814,14 @@ local function handle_input(field)
     state.input_mode = field
 end
 
--- 绘制搜索表单
+-- Draw search form
 local function draw_search_form(ctx)
     local lines = {}
     local hl = {}
     local width = ctx.width - 2
     
-    -- 搜索输入字段
-    local search_prefix = " " .. icons.search .. " 搜索 : "
+    -- Search input field
+    local search_prefix = " " .. icons.search .. " Search : "
     local search_display = state.query
     if search_display == "" then
         search_display = "__________________"
@@ -837,29 +836,29 @@ local function draw_search_form(ctx)
         table.insert(hl, { "SidebarNvimSearch", #lines, #search_prefix, #search_prefix + #search_display })
     end
     
-    -- 添加大小写、正则、全词切换按钮
+    -- Add case, regex, word toggle buttons
     local toggle_offset = width - 12
-    -- 大小写敏感
+    -- Case sensitive
     local case_icon = state.case_sensitive and icons.case_sensitive.on or icons.case_sensitive.off
     table.insert(hl, { "SidebarNvimSearchToggle", #lines, toggle_offset, toggle_offset + 2 })
     lines[#lines] = lines[#lines] .. string.rep(" ", toggle_offset - #lines[#lines]) .. case_icon
     
-    -- 词边界
+    -- Word boundary
     local word_icon = state.whole_word and icons.word.on or icons.word.off
     table.insert(hl, { "SidebarNvimSearchToggle", #lines, toggle_offset + 3, toggle_offset + 5 })
     lines[#lines] = lines[#lines] .. " " .. word_icon
     
-    -- 正则表达式切换
+    -- Regex toggle
     local regex_icon = state.use_regex and icons.regex.on or icons.regex.off
     table.insert(hl, { "SidebarNvimSearchToggle", #lines, toggle_offset + 6, toggle_offset + 8 })
     lines[#lines] = lines[#lines] .. " " .. regex_icon
     
-    -- 历史按钮
+    -- History button
     table.insert(hl, { "SidebarNvimSearchButton", #lines, toggle_offset + 9, toggle_offset + 10 })
     lines[#lines] = lines[#lines] .. " " .. icons.history
     
-    -- 替换输入字段
-    local replace_prefix = " " .. icons.replace .. " 替换 : "
+    -- Replace input field
+    local replace_prefix = " " .. icons.replace .. " Replace : "
     local replace_display = state.replace_text
     if replace_display == "" then
         replace_display = "__________________"
@@ -874,12 +873,12 @@ local function draw_search_form(ctx)
         table.insert(hl, { "SidebarNvimSearch", #lines, #replace_prefix, #replace_prefix + #replace_display })
     end
     
-    -- 替换按钮
+    -- Replace button
     table.insert(hl, { "SidebarNvimSearchButton", #lines, width - 2, width })
     lines[#lines] = lines[#lines] .. string.rep(" ", width - #lines[#lines] - 2) .. " R"
     
-    -- 包含模式字段
-    local include_prefix = " " .. icons.include .. " 包含 : "
+    -- Include pattern field
+    local include_prefix = " " .. icons.include .. " Include : "
     local include_display = state.include_pattern
     if include_display == "" then
         include_display = "*.{js,ts,lua}"
@@ -894,12 +893,12 @@ local function draw_search_form(ctx)
         table.insert(hl, { "SidebarNvimSearch", #lines, #include_prefix, #include_prefix + #include_display })
     end
     
-    -- 预览图标
+    -- Preview icon
     table.insert(hl, { "SidebarNvimSearchButton", #lines, width - 2, width })
     lines[#lines] = lines[#lines] .. string.rep(" ", width - #lines[#lines] - 2) .. " " .. icons.preview
     
-    -- 排除模式字段
-    local exclude_prefix = " " .. icons.exclude .. " 排除 : "
+    -- Exclude pattern field
+    local exclude_prefix = " " .. icons.exclude .. " Exclude : "
     local exclude_display = state.exclude_pattern
     if exclude_display == "" then
         exclude_display = "node_modules,dist"
@@ -914,14 +913,14 @@ local function draw_search_form(ctx)
         table.insert(hl, { "SidebarNvimSearch", #lines, #exclude_prefix, #exclude_prefix + #exclude_display })
     end
     
-    -- 设置图标
+    -- Settings icon
     table.insert(hl, { "SidebarNvimSearchButton", #lines, width - 2, width })
     lines[#lines] = lines[#lines] .. string.rep(" ", width - #lines[#lines] - 2) .. " ⚙"
     
-    -- 状态行
+    -- Status line
     local status_line = string.rep("─", width)
     if state.searching then
-        status_line = " 🔄 正在搜索... "
+        status_line = " 🔄 Searching... "
         table.insert(hl, { "SidebarNvimSearchProgress", #lines + 1, 0, #status_line })
     end
     table.insert(lines, status_line)
@@ -929,27 +928,27 @@ local function draw_search_form(ctx)
     return lines, hl
 end
 
--- 导出模块函数
+-- Export module functions
 local M = {
     close_preview = function()
         state:clear_preview() 
     end,
 }
 
--- 返回侧边栏部分定义
+-- Return sidebar section definition
 M.section = {
-    title = "搜索",
+    title = "Search",
     icon = config.search.icon,
     draw = function(ctx)
         local form_lines, form_hl = draw_search_form(ctx)
         
-        -- 绘制搜索结果
+        -- Draw search results
         local result_lines = {}
         local result_hl = {}
         
         loclist:draw(ctx, result_lines, result_hl)
         
-        -- 合并表单和结果
+        -- Merge form and results
         local lines = {}
         local hl = {}
         
@@ -960,17 +959,17 @@ M.section = {
         
         vim.list_extend(lines, result_lines)
         for _, highlight in ipairs(result_hl) do
-            -- 调整高亮行号以适应表单行
+            -- Adjust highlight line numbers to accommodate form lines
             highlight[2] = highlight[2] + #form_lines
             table.insert(hl, highlight)
         end
         
         if #result_lines == 0 and state.query ~= "" then
             if state.searching then
-                table.insert(lines, " 正在搜索...")
+                table.insert(lines, " Searching...")
                 table.insert(hl, { "SidebarNvimSearchProgress", #lines, 0, 12 })
             else
-                table.insert(lines, " 未找到结果")
+                table.insert(lines, " No results found")
                 table.insert(hl, { "SidebarNvimComment", #lines, 0, 16 })
             end
         end
@@ -992,7 +991,7 @@ M.section = {
     },
     
     bindings = {
-        -- 表单字段导航
+        -- Form field navigation
         ["<Tab>"] = function()
             if state.input_mode == "search" then
                 state.input_mode = "replace"
@@ -1017,55 +1016,55 @@ M.section = {
             end
         end,
         
-        -- 编辑搜索字段
+        -- Edit search field
         ["s"] = function()
             handle_input("search")
         end,
         
-        -- 编辑替换字段
+        -- Edit replace field
         ["r"] = function()
             handle_input("replace")
         end,
         
-        -- 编辑包含模式
+        -- Edit include pattern
         ["i"] = function()
             handle_input("include") 
         end,
         
-        -- 编辑排除模式
+        -- Edit exclude pattern
         ["x"] = function()
             handle_input("exclude")
         end,
         
-        -- 访问搜索历史
+        -- Access search history
         ["h"] = function()
             browse_history()
         end,
         
-        -- 取消正在进行的搜索
+        -- Cancel ongoing search
         ["<C-c>"] = function()
             state:cancel_search()
         end,
         
-        -- 切换大小写敏感
+        -- Toggle case sensitivity
         ["c"] = function()
             state:toggle_setting("case_sensitive")
         end,
         
-        -- 切换正则模式
+        -- Toggle regex mode
         ["."] = function()
             state:toggle_setting("use_regex") 
         end,
         
-        -- 切换全词匹配
+        -- Toggle whole word match
         ["w"] = function()
             state:toggle_setting("whole_word")
         end,
         
-        -- 执行搜索
+        -- Execute search
         ["<CR>"] = function(line)
             if line <= 4 then
-                -- 在输入表单部分
+                -- In form input section
                 if line == 1 then
                     handle_input("search")
                 elseif line == 2 then
@@ -1076,8 +1075,8 @@ M.section = {
                     handle_input("exclude")
                 end
             else
-                -- 在结果部分，打开文件
-                local location = loclist:get_location_at(line - 5)  -- 输入表单的偏移量
+                -- In results section, open file
+                local location = loclist:get_location_at(line - 5)  -- Form offset
                 if location then
                     vim.cmd("wincmd p")
                     vim.cmd("e " .. location.filepath)
@@ -1086,21 +1085,21 @@ M.section = {
             end
         end,
         
-        -- 预览文件而不打开
+        -- Preview file without opening
         ["p"] = function(line)
-            if line <= 5 then return end  -- 跳过输入表单
+            if line <= 5 then return end  -- Skip form inputs
             
-            local location = loclist:get_location_at(line - 5)  -- 输入表单的偏移量
+            local location = loclist:get_location_at(line - 5)  -- Form offset
             if location then
                 show_preview(location)
             end
         end,
         
-        -- 在位置打开文件
+        -- Open file at location
         ["e"] = function(line)
-            if line <= 5 then return end  -- 跳过输入表单
+            if line <= 5 then return end  -- Skip form inputs
             
-            local location = loclist:get_location_at(line - 5)  -- 输入表单的偏移量
+            local location = loclist:get_location_at(line - 5)  -- Form offset
             if location then
                 vim.cmd("wincmd p")
                 vim.cmd("e " .. location.filepath)
@@ -1108,36 +1107,36 @@ M.section = {
             end
         end,
         
-        -- 执行替换
+        -- Execute replacement
         ["R"] = function()
             execute_replace()
         end,
         
-        -- 切换结果组
+        -- Toggle result groups
         ["t"] = function(line)
-            if line <= 5 then return end  -- 跳过输入表单
-            loclist:toggle_group_at(line - 5)  -- 输入表单的偏移量
+            if line <= 5 then return end  -- Skip form inputs
+            loclist:toggle_group_at(line - 5)  -- Form offset
         end,
         
-        -- 关闭预览窗口
+        -- Close preview window
         ["q"] = function()
             state:clear_preview()
         end,
     },
     
     setup = function(ctx)
-        -- 注册导出函数
+        -- Register exported functions
         M.execute_search = execute_search
         M.execute_replace = execute_replace
         M.browse_history = browse_history
         M.show_preview = show_preview
         
-        -- 初始设置
+        -- Initial setup
         vim.api.nvim_set_hl(0, "SidebarNvimSearchMatch", { fg = "#FFFF00", bold = true })
     end,
     
     update = function(ctx)
-        -- 如果搜索查询已更改，则更新
+        -- Update if search query has changed
         if state.query ~= "" and not state.searching then
             execute_search()
         end
